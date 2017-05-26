@@ -70,14 +70,30 @@ def push_to_mysql(NowDate,tlist):
         else:
             (eval(class_name)).raw(tab['del']).execute()
 
+        data_source,i = [], 0
         for line in resultfile:
             line = line.strip().split('\t')
-            tobj = Init_table_obj(class_name, colnames, line)
+            objdict = Init_table_obj(class_name, colnames, line)
+            data_source.append(objdict)
+            i += 1
+            if i == 1000:
+                try:
+                    # Fastest.
+                    with database.atomic():
+                        eval(class_name).insert_many(data_source).execute()
+                    i = 0
+                    data_source = []
+                except Exception as e:
+                    print "ERROR: save %s to mysql exception %s" %(line, e)
+                    exit(-1)
+        if len(data_source) > 0:
             try:
-                tobj.save()
+                with database.atomic():
+                    eval(class_name).insert_many(data_source).execute()
             except Exception as e:
                 print "ERROR: save %s to mysql exception %s" %(line, e)
                 exit(-1)
+
         print "push tab %s over" % tab['table']
 
 def pull_from_hive(NowDate,tlist):
